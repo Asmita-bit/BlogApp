@@ -42,7 +42,7 @@ jobs:
   # --------------------- Lint Jobs ---------------------
   lint_backend1:
     name: Lint Backend1
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, backend]
     needs: commitlint
     if: github.event_name == 'pull_request' && (github.head_ref == 'feature' || startsWith(github.head_ref, 'feature/')) && github.base_ref == 'dev'
     steps:
@@ -63,7 +63,7 @@ jobs:
 
   lint_backend2:
     name: Lint Backend2
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, backend]
     needs: commitlint
     if: github.event_name == 'pull_request' && (github.head_ref == 'feature' || startsWith(github.head_ref, 'feature/')) && github.base_ref == 'dev'
     steps:
@@ -84,7 +84,7 @@ jobs:
 
   lint_frontend:
     name: Lint Frontend
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, frontend]
     needs: commitlint
     if: github.event_name == 'pull_request' && (github.head_ref == 'feature' || startsWith(github.head_ref, 'feature/')) && github.base_ref == 'dev'
     steps:
@@ -106,7 +106,7 @@ jobs:
   # --------------------- Docker Build & Push Jobs ---------------------
   build_backend1:
     name: Build & Push Backend1 Image
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, backend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     environment: development
     steps:
@@ -128,7 +128,7 @@ jobs:
 
   build_backend2:
     name: Build & Push Backend2 Image
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, backend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     environment: development
     steps:
@@ -150,7 +150,7 @@ jobs:
 
   build_frontend:
     name: Build & Push Frontend Image
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, frontend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     environment: development
     steps:
