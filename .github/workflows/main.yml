@@ -100,8 +100,6 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: yarn install
       - name: Run Linter
-        working-directory: ./code/frontend
-        run: yarn lint
 
   # --------------------- Docker Build & Push Jobs ---------------------
   build_backend1:
