@@ -88,4 +88,12 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:dev-${{ github.sha }}
             ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:dev-latest
-------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------
+  cleanup-docker-images:
+    name: Cleanup Docker Images Only
+    runs-on: self-hosted 
+    steps:
+      - name: Remove all unused Docker images
+        run: |
+          echo "Cleaning up unused Docker images..."
+          docker rmi $(docker images -a -q)
