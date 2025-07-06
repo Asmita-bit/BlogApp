@@ -1,109 +1,168 @@
-name: Build and Push Prod Images
+name: CI - Build, Lint, and Push Images
+
 on:
   pull_request:
-    branches: ["dev"]
+    branches: ['dev']
   push:
-    branches:
-      - dev
-      
+    branches: ['dev']
+
 env:
   REGISTRY: docker.io
   FRONTEND_IMAGE_NAME: asmita071/frontend
   BACKEND1_IMAGE_NAME: asmita071/backend1
   BACKEND2_IMAGE_NAME: asmita071/backend2
+
 jobs:
   commitlint:
+    name: Conventional Commit Lint
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && (github.head_ref == 'feature' || startsWith(github.head_ref, 'feature/*')) && github.base_ref == 'dev'
+    if: github.event_name == 'pull_request' && (github.head_ref == 'feature' || startsWith(github.head_ref, 'feature/')) && github.base_ref == 'dev'
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: lts/*
       - name: Install Commitlint
+        run: npm install -D @commitlint/cli @commitlint/config-conventional
+      - name: Add Commitlint Config
         run: |
-          npm install --save-dev @commitlint/cli @commitlint/config-conventional
-      - name: Add commitlint config
+          echo "module.exports = { extends: ['@commitlint/config-conventional'] };" > commitlint.config.js
+      - name: Print versions
         run: |
-          echo "module.exports = {extends: ['@commitlint/config-conventional']};" > commitlint.config.js
-      - name: Run Commitlint
-        run: |
-          git log origin/${{ github.base_ref }}..HEAD --pretty=format:"%s" | npx commitlint
-  checK_lint:
+          git --version
+          node --version
+          npm --version
+          npx commitlint --version
+      - name: Validate PR commits with commitlint
+        run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+
+  # --------------------- Lint Jobs ---------------------
+  lint_backend1:
+    name: Lint Backend1
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'feature') && github.base_ref == 'dev'
-    needs: ["commitlint"]
+    needs: commitlint
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'feature/') && github.base_ref == 'dev'
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Install packages of backend2
-        working-directory: ./code/backend2
-        run: yarn
-      - name: Install packages of backend1
+      - uses: actions/checkout@v3
+      - name: Cache node_modules
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ./code/backend1/node_modules
+          key: backend1-cache-${{ hashFiles('code/backend1/yarn.lock') }}
+      - name: Install Dependencies
         working-directory: ./code/backend1
-        run: yarn
-      - name: Install packages of frontend
-        working-directory: ./code/frontend
-        run: yarn
-      - name: Run lint on backend1
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: yarn install
+      - name: Run Linter
         working-directory: ./code/backend1
         run: yarn lint
-      - name: Run lint on backend2
+
+  lint_backend2:
+    name: Lint Backend2
+    runs-on: ubuntu-latest
+    needs: commitlint
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'feature/') && github.base_ref == 'dev'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Cache node_modules
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ./code/backend2/node_modules
+          key: backend2-cache-${{ hashFiles('code/backend2/yarn.lock') }}
+      - name: Install Dependencies
+        working-directory: ./code/backend2
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: yarn install
+      - name: Run Linter
         working-directory: ./code/backend2
         run: yarn lint
-      - name: Run lint on frontend
+
+  lint_frontend:
+    name: Lint Frontend
+    runs-on: [self-hosted, frontend]
+    needs: commitlint
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'feature/') && github.base_ref == 'dev'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Cache node_modules
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ./code/frontend/node_modules
+          key: frontend-cache-${{ hashFiles('code/frontend/yarn.lock') }}
+      - name: Install Dependencies
+        working-directory: ./code/frontend
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: yarn install
+      - name: Run Linter
         working-directory: ./code/frontend
         run: yarn lint
-  build_docker:
+
+  # --------------------- Docker Build & Push Jobs ---------------------
+  build_backend1:
+    name: Build & Push Backend1 Image
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Log in to DockerHub
-        uses: docker/login-action@v3
+      - uses: actions/checkout@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build and Push Backend1 Image
+          username: ${{ secrets.DOCK_UNAME }}
+          password: ${{ secrets.DOCK_TOKEN }}
+      - name: Build & Push Backend1 Image
         uses: docker/build-push-action@v5
         with:
           context: ./code/backend1
           file: ./code/backend1/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.BACKEND1_IMAGE_NAME }}:dev-${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.BACKEND1_IMAGE_NAME }}:dev-latest
-      - name: Build and Push Backend2 Image
+            ${{ env.REGISTRY }}/${{ env.BACKEND1_IMAGE_NAME }}:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.BACKEND1_IMAGE_NAME }}:latest
+
+  build_backend2:
+    name: Build & Push Backend2 Image
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCK_UNAME }}
+          password: ${{ secrets.DOCK_TOKEN }}
+      - name: Build & Push Backend2 Image
         uses: docker/build-push-action@v5
         with:
           context: ./code/backend2
           file: ./code/backend2/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.BACKEND2_IMAGE_NAME }}:dev-${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.BACKEND2_IMAGE_NAME }}:dev-latest
-      - name: Build and Push Frontend Image
+            ${{ env.REGISTRY }}/${{ env.BACKEND2_IMAGE_NAME }}:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.BACKEND2_IMAGE_NAME }}:latest
+
+  build_frontend:
+    name: Build & Push Frontend Image
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCK_UNAME }}
+          password: ${{ secrets.DOCK_TOKEN }}
+      - name: Build & Push Frontend Image
         uses: docker/build-push-action@v5
         with:
           context: ./code/frontend
           file: ./code/frontend/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:dev-${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:dev-latest
-
-  cleanup-docker-images:
-    name: Cleanup Docker Images Only
-    runs-on: self-hosted 
-    steps:
-      - name: Remove all unused Docker images
-        run: |
-          echo "Cleaning up unused Docker images..."
-          docker rmi $(docker images -a -q)
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
