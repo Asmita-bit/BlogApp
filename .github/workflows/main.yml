@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - dev
+      
 env:
   REGISTRY: docker.io
   FRONTEND_IMAGE_NAME: asmita071/frontend
@@ -13,7 +14,7 @@ env:
 jobs:
   commitlint:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && (github.head_ref == 'feature' || startsWith(github.head_ref, 'feature/')) && github.base_ref == 'dev'
+    if: github.event_name == 'pull_request' && (github.head_ref == 'feature' || startsWith(github.head_ref, 'feature/*')) && github.base_ref == 'dev'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -97,3 +98,12 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:dev-${{ github.sha }}
             ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:dev-latest
+
+  cleanup-docker-images:
+    name: Cleanup Docker Images Only
+    runs-on: self-hosted 
+    steps:
+      - name: Remove all unused Docker images
+        run: |
+          echo "Cleaning up unused Docker images..."
+          docker rmi $(docker images -a -q)
