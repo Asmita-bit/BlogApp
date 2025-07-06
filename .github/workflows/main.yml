@@ -44,7 +44,7 @@ jobs:
     name: Lint Backend1
     runs-on: ubuntu-latest
     needs: commitlint
-    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'feature/') && github.base_ref == 'dev'
+    if: github.event_name == 'pull_request' && (github.head_ref == 'feature' || startsWith(github.head_ref, 'feature/')) && github.base_ref == 'dev'
     steps:
       - uses: actions/checkout@v3
       - name: Cache node_modules
@@ -65,7 +65,7 @@ jobs:
     name: Lint Backend2
     runs-on: ubuntu-latest
     needs: commitlint
-    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'feature/') && github.base_ref == 'dev'
+    if: github.event_name == 'pull_request' && (github.head_ref == 'feature' || startsWith(github.head_ref, 'feature/')) && github.base_ref == 'dev'
     steps:
       - uses: actions/checkout@v3
       - name: Cache node_modules
@@ -86,7 +86,7 @@ jobs:
     name: Lint Frontend
     runs-on: ubuntu-latest
     needs: commitlint
-    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'feature/') && github.base_ref == 'dev'
+    if: github.event_name == 'pull_request' && (github.head_ref == 'feature' || startsWith(github.head_ref, 'feature/')) && github.base_ref == 'dev'
     steps:
       - uses: actions/checkout@v3
       - name: Cache node_modules
