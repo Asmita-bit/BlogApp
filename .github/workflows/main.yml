@@ -169,3 +169,45 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ github.ref_name }}
             ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
+  
+  #---------------------------------------Frontend Deployed to Github Pages--------------------------------------------------          
+  deploy_frontend_to_gh_pages:
+    name: Build & Deploy Frontend to GitHub Pages
+    runs-on: [self-hosted, frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    needs: build_frontend
+    permissions:
+      contents: write
+      pages: write
+      id-token: write 
+       # Needed to push to gh-pages
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: ./code/frontend/node_modules
+          key: frontend-pages-cache-${{ hashFiles('code/frontend/yarn.lock') }}
+
+      - name: Install dependencies
+        working-directory: ./code/frontend
+        run: yarn install --frozen-lockfile
+
+      - name: Build Frontend
+        working-directory: ./code/frontend
+        run: |
+          yarn build
+          touch dist/.nojekyll
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./code/frontend/dist
+  
