@@ -175,8 +175,10 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ github.ref_name }}
             ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
+
   
 #---------------------------------------Frontend Deployed to Github Pages--------------------------------------------------          
+
   deploy_frontend_to_gh_pages:
     name: Build & Deploy Frontend to GitHub Pages
     runs-on: [self-hosted, frontend]
@@ -216,4 +218,4 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./code/frontend/dist
-    
+
