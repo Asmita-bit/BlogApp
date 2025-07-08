@@ -219,3 +219,39 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./code/frontend/dist
 
+#--------------------------------------------Semantic Versioning-----------------------------------------------------------------------
+  release:
+    name: Semantic Versioning
+    permissions:
+        contents: write
+    runs-on: ubuntu-latest # Runs on an Ubuntu runner
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      # Step 1: Checkout the repository code
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20" # Use the Node.js version required for your project
+
+      # Step 3: Cache Node.js modules to speed up future builds
+      - name: Cache Node.js modules
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      # Step 4: Install dependencies
+      - name: Install Dependencies
+        run: yarn install --frozen-lockfile
+
+      # Step 5: Run semantic-release
+      - name: Run Semantic Release
+        run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provide the GitHub token for authentication
