@@ -151,8 +151,10 @@ jobs:
           file: ./code/backend2/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.BACKEND2_IMAGE_NAME }}:${{ github.ref_name }}
-            ${{ env.REGISTRY }}/${{ env.BACKEND2_IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ steps.semantic_version.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
+
+
 
   build_frontend:
     name: Build & Push Frontend Image
@@ -176,8 +178,9 @@ jobs:
           file: ./code/frontend/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ steps.semantic_version.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
+
 
   
 #---------------------------------------Frontend Deployed to Github Pages--------------------------------------------------          
@@ -225,36 +228,29 @@ jobs:
 #--------------------------------------------Semantic Versioning-----------------------------------------------------------------------
   release:
     name: Semantic Versioning
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
     permissions:
-        contents: write
-    runs-on: ubuntu-latest 
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      contents: write
     steps:
-      # Step 1: Checkout the repository code
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Step 2: Set up Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: "20"
 
-      # Step 3: Cache Node.js modules to speed up future builds
       - name: Cache Node.js modules
         uses: actions/cache@v3
         with:
           path: node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-node-modules-
 
-      # Step 4: Install dependencies
       - name: Install Dependencies
         run: yarn install --frozen-lockfile
 
-      # Step 5: Run semantic-release
       - name: Run Semantic Release
         run: npx semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provide the GitHub token for authentication
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
