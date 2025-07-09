@@ -224,7 +224,7 @@ jobs:
     name: Semantic Versioning
     permissions:
         contents: write
-    runs-on: ubuntu-latest # Runs on an Ubuntu runner
+    runs-on: ubuntu-latest 
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       # Step 1: Checkout the repository code
@@ -235,7 +235,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "20" # Use the Node.js version required for your project
+          node-version: "20"
 
       # Step 3: Cache Node.js modules to speed up future builds
       - name: Cache Node.js modules
