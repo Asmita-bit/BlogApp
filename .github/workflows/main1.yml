@@ -106,7 +106,8 @@ jobs:
   # --------------------- Docker Build & Push Jobs ---------------------
   build_backend1:
     name: Build & Push Backend1 Image
-    needs: [release] # depends on this
+    needs: [release]
+
     runs-on: [self-hosted, backend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     environment: development
