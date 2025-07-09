@@ -1,0 +1,257 @@
+name: CI - Build, Lint, and Push Images
+
+on:
+  pull_request:
+    branches: ['dev']
+  push:
+    branches: ['dev']
+
+env:
+  REGISTRY: docker.io
+  FRONTEND_IMAGE_NAME: asmita071/frontend
+  BACKEND1_IMAGE_NAME: asmita071/backend1
+  BACKEND2_IMAGE_NAME: asmita071/backend2
+
+jobs:
+  commitlint:
+    name: Conventional Commit Lint
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && (github.head_ref == 'feature' || startsWith(github.head_ref, 'feature/')) && github.base_ref == 'dev'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Install Commitlint
+        run: npm install -D @commitlint/cli @commitlint/config-conventional
+      - name: Add Commitlint Config
+        run: |
+          echo "module.exports = { extends: ['@commitlint/config-conventional'] };" > commitlint.config.js
+      - name: Print versions
+        run: |
+          git --version
+          node --version
+          npm --version
+          npx commitlint --version
+      - name: Validate PR commits with commitlint
+        run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+
+  # --------------------- Lint Jobs ---------------------
+  lint_backend1:
+    name: Lint Backend1
+    runs-on: [self-hosted, backend]
+    needs: commitlint
+    if: github.event_name == 'pull_request' && (github.head_ref == 'feature' || startsWith(github.head_ref, 'feature/')) && github.base_ref == 'dev'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Cache node_modules
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ./code/backend1/node_modules
+          key: backend1-cache-${{ hashFiles('code/backend1/yarn.lock') }}
+      - name: Install Dependencies
+        working-directory: ./code/backend1
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: yarn install
+      - name: Run Linter
+        working-directory: ./code/backend1
+        run: yarn lint
+
+  lint_backend2:
+    name: Lint Backend2
+    runs-on: [self-hosted, backend]
+    needs: commitlint
+    if: github.event_name == 'pull_request' && (github.head_ref == 'feature' || startsWith(github.head_ref, 'feature/')) && github.base_ref == 'dev'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Cache node_modules
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ./code/backend2/node_modules
+          key: backend2-cache-${{ hashFiles('code/backend2/yarn.lock') }}
+      - name: Install Dependencies
+        working-directory: ./code/backend2
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: yarn install
+      - name: Run Linter
+        working-directory: ./code/backend2
+        run: yarn lint
+
+  lint_frontend:
+    name: Lint Frontend
+    runs-on: [self-hosted, frontend]
+    needs: commitlint
+    if: github.event_name == 'pull_request' && (github.head_ref == 'feature' || startsWith(github.head_ref, 'feature/')) && github.base_ref == 'dev'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Cache node_modules
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ./code/frontend/node_modules
+          key: frontend-cache-${{ hashFiles('code/frontend/yarn.lock') }}
+      - name: Install Dependencies
+        working-directory: ./code/frontend
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: yarn install
+      - name: Run Linter
+        working-directory: ./code/frontend
+        run: yarn lint
+
+  # --------------------- Docker Build & Push Jobs ---------------------
+  build_backend1:
+    name: Build & Push Backend1 Image
+    runs-on: [self-hosted, backend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    environment: development
+    steps:
+      - uses: actions/checkout@v3
+      - name: Fix Docker Hub Issue
+        run: docker logout
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build & Push Backend1 Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./code/backend1
+          file: ./code/backend1/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BACKEND1_IMAGE_NAME }}:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.BACKEND1_IMAGE_NAME }}:latest
+
+  build_backend2:
+    name: Build & Push Backend2 Image
+    runs-on: [self-hosted, backend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    environment: development
+    steps:
+      - uses: actions/checkout@v3
+      - name: Fix Docker Hub Issue
+        run: docker logout
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build & Push Backend2 Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./code/backend2
+          file: ./code/backend2/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.BACKEND2_IMAGE_NAME }}:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.BACKEND2_IMAGE_NAME }}:latest
+
+  build_frontend:
+    name: Build & Push Frontend Image
+    runs-on: [self-hosted, frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    environment: development
+    steps:
+      - uses: actions/checkout@v3
+      - name: Fix Docker Hub Issue
+        run: docker logout
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build & Push Frontend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./code/frontend
+          file: ./code/frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
+
+  
+#---------------------------------------Frontend Deployed to Github Pages--------------------------------------------------          
+
+  deploy_frontend_to_gh_pages:
+    name: Build & Deploy Frontend to GitHub Pages
+    runs-on: [self-hosted, frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    needs: build_frontend
+    permissions:
+      contents: write
+      pages: write
+      id-token: write 
+       # Needed to push to gh-pages
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: ./code/frontend/node_modules
+          key: frontend-pages-cache-${{ hashFiles('code/frontend/yarn.lock') }}
+
+      - name: Install dependencies
+        working-directory: ./code/frontend
+        run: yarn install --frozen-lockfile
+
+      - name: Build Frontend
+        working-directory: ./code/frontend
+        run: |
+          yarn build
+          touch dist/.nojekyll
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./code/frontend/dist
+
+#--------------------------------------------Semantic Versioning-----------------------------------------------------------------------
+  release:
+    name: Semantic Versioning
+    permissions:
+        contents: write
+    runs-on: ubuntu-latest 
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      # Step 1: Checkout the repository code
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+
+      # Step 3: Cache Node.js modules to speed up future builds
+      - name: Cache Node.js modules
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      # Step 4: Install dependencies
+      - name: Install Dependencies
+        run: yarn install --frozen-lockfile
+
+      # Step 5: Run semantic-release
+      - name: Run Semantic Release
+        run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provide the GitHub token for authentication
