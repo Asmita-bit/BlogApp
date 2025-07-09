@@ -106,6 +106,7 @@ jobs:
   # --------------------- Docker Build & Push Jobs ---------------------
   build_backend1:
     name: Build & Push Backend1 Image
+    needs: [release]
     runs-on: [self-hosted, backend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     environment: development
@@ -130,6 +131,7 @@ jobs:
 
   build_backend2:
     name: Build & Push Backend2 Image
+    needs: [release]
     runs-on: [self-hosted, backend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     environment: development
@@ -154,6 +156,7 @@ jobs:
 
   build_frontend:
     name: Build & Push Frontend Image
+    needs: [release]
     runs-on: [self-hosted, frontend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     environment: development
