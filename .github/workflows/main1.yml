@@ -107,6 +107,7 @@ jobs:
   build_backend1:
     name: Build & Push Backend1 Image
     needs: [release]
+
     runs-on: [self-hosted, backend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     environment: development
