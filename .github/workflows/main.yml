@@ -126,8 +126,8 @@ jobs:
           file: ./code/backend1/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.BACKEND1_IMAGE_NAME }}:${{ github.ref_name }}
-            ${{ env.REGISTRY }}/${{ env.BACKEND1_IMAGE_NAME }}:latest
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/backend1:${{ steps.semantic_version.outputs.version || 'dev' }}
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/backend1:latest
 
   build_backend2:
     name: Build & Push Backend2 Image
@@ -151,8 +151,8 @@ jobs:
           file: ./code/backend2/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ steps.semantic_version.outputs.version }}
-            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/backend2:${{ steps.semantic_version.outputs.version || 'dev' }}
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/backend2:latest
 
 
 
@@ -178,8 +178,8 @@ jobs:
           file: ./code/frontend/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ steps.semantic_version.outputs.version }}
-            ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ steps.semantic_version.outputs.version || 'dev' }}
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest
 
 
   
